@@ -167,6 +167,20 @@ RansacStats ransac_relpose(const std::vector<Point2D> &x1, const std::vector<Poi
     return stats;
 }
 
+RansacStats ransac_relpose(const std::vector<Point3D> &d1, const std::vector<Point3D> &d2,
+                           const RelativePoseOptions &opt, CameraPose *best_model,
+                           std::vector<char> *best_inliers) {
+    best_model->q << 1.0, 0.0, 0.0, 0.0;
+    best_model->t.setZero();
+    BearingRelativePoseEstimator estimator(opt, d1, d2);
+    RansacStats stats = ransac<BearingRelativePoseEstimator>(estimator, opt.ransac, best_model);
+
+    get_tangent_sampson_inliers(*best_model, d1, d2, estimator.M1, estimator.M2, opt.max_error * opt.max_error,
+                                best_inliers);
+
+    return stats;
+}
+
 RansacStats ransac_monodepth_relpose(const std::vector<Point2D> &x1, const std::vector<Point2D> &x2,
                                      const std::vector<double> &d1, const std::vector<double> &d2,
                                      const MonoDepthRelativePoseOptions &opt, MonoDepthTwoViewGeometry *best_model,

@@ -107,6 +107,15 @@ double compute_msac_score_1D_radial(const CameraPose &pose, const std::vector<Po
 void get_inliers_1D_radial(const CameraPose &pose, const std::vector<Point2D> &x, const std::vector<Point3D> &X,
                            double sq_threshold, std::vector<char> *inliers);
 
+// Compute orthonormal tangent-plane basis for a unit bearing vector
+inline void compute_bearing_tangent_basis(const Eigen::Vector3d &d, Eigen::Matrix<double, 3, 2> &M) {
+    Eigen::Vector3d ref = (std::abs(d.z()) < 0.9) ? Eigen::Vector3d::UnitZ() : Eigen::Vector3d::UnitX();
+    Eigen::Vector3d u = d.cross(ref).normalized();
+    Eigen::Vector3d v = d.cross(u);
+    M.col(0) = u;
+    M.col(1) = v;
+}
+
 // Normalize points by shifting/scaling coordinate systems.
 double normalize_points(std::vector<Eigen::Vector2d> &x1, std::vector<Eigen::Vector2d> &x2, Eigen::Matrix3d &T1,
                         Eigen::Matrix3d &T2, bool normalize_scale, bool normalize_centroid, bool shared_scale);

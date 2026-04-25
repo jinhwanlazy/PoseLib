@@ -62,6 +62,9 @@ RansacStats ransac_relpose(const std::vector<Point2D> &x1, const std::vector<Poi
 RansacStats ransac_relpose(const std::vector<Point2D> &x1, const std::vector<Point2D> &x2, const Camera &camera1,
                            const Camera &camera2, const RelativePoseOptions &opt, CameraPose *best_model,
                            std::vector<char> *best_inliers);
+RansacStats ransac_relpose(const std::vector<Point3D> &d1, const std::vector<Point3D> &d2,
+                           const RelativePoseOptions &opt, CameraPose *best_model,
+                           std::vector<char> *best_inliers);
 
 RansacStats ransac_monodepth_relpose(const std::vector<Point2D> &x1, const std::vector<Point2D> &x2,
                                      const std::vector<double> &d1, const std::vector<double> &d2,

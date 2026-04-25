@@ -69,6 +69,13 @@ RansacStats estimate_relative_pose(const std::vector<Point2D> &points2D_1, const
                                    const Camera &camera1, const Camera &camera2, const RelativePoseOptions &opt,
                                    CameraPose *relative_pose, std::vector<char> *inliers);
 
+// Estimates relative pose from pre-computed bearing vectors (3D unit vectors in camera space)
+// using LO-RANSAC followed by non-linear refinement.
+// Threshold max_error is in degrees (angular error). Default 1.0 degree.
+RansacStats estimate_calibrated_relative_pose(const std::vector<Point3D> &bearings1,
+                                              const std::vector<Point3D> &bearings2, const RelativePoseOptions &opt,
+                                              CameraPose *relative_pose, std::vector<char> *inliers);
+
 // Estimates relative geometry from using points and estimated depth using LO-RANSAC followed by non-linear refinement
 // Threshold for Sampson error is set by RansacOptions.max_epipolar_error
 // MonoDepth relative pose estimation with known calibration

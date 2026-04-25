@@ -51,6 +51,31 @@ estimate_relative_pose_wrapper(const std::vector<Eigen::Vector2d> &points2D_1,
                                           initial_pose);
 }
 
+std::pair<CameraPose, py::dict>
+estimate_calibrated_relative_pose_wrapper(const std::vector<Eigen::Vector3d> &bearings1,
+                                          const std::vector<Eigen::Vector3d> &bearings2, const py::dict &opt_dict,
+                                          const std::optional<CameraPose> &initial_pose) {
+
+    RelativePoseOptions opt;
+    update_relative_pose_options(opt_dict, opt);
+
+    CameraPose pose;
+    if (initial_pose.has_value()) {
+        pose = initial_pose.value();
+        opt.ransac.score_initial_model = true;
+    }
+    std::vector<char> inlier_mask;
+
+    py::gil_scoped_release release;
+    RansacStats stats = estimate_calibrated_relative_pose(bearings1, bearings2, opt, &pose, &inlier_mask);
+    py::gil_scoped_acquire acquire;
+
+    py::dict output_dict;
+    write_to_dict(stats, output_dict);
+    output_dict["inliers"] = convert_inlier_vector(inlier_mask);
+    return std::make_pair(pose, output_dict);
+}
+
 std::pair<MonoDepthTwoViewGeometry, py::dict> estimate_monodepth_relative_pose_wrapper(
     const std::vector<Eigen::Vector2d> &points2D_1, const std::vector<Eigen::Vector2d> &points2D_2,
     const std::vector<double> &depth_1, const std::vector<double> &depth_2, const Camera &camera1,
@@ -418,6 +443,11 @@ void register_relative_pose(py::module &m) {
         py::arg("points2D_1"), py::arg("points2D_2"), py::arg("camera1_dict"), py::arg("camera2_dict"),
         py::arg("opt") = py::dict(), py::arg("initial_pose") = py::none(),
         "Relative pose estimation with non-linear refinement.");
+
+    m.def("estimate_calibrated_relative_pose", &estimate_calibrated_relative_pose_wrapper, py::arg("bearings1"),
+          py::arg("bearings2"), py::arg("opt") = py::dict(), py::arg("initial_pose") = py::none(),
+          "Calibrated relative pose estimation from bearing vectors with non-linear refinement. "
+          "max_error is in degrees (angular error). Default: 1.0 degree.");
 
     m.def("estimate_monodepth_relative_pose",
           py::overload_cast<const std::vector<Eigen::Vector2d> &, const std::vector<Eigen::Vector2d> &,

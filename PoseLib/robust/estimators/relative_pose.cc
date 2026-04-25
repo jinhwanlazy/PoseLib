@@ -30,6 +30,7 @@
 
 #include "PoseLib/misc/essential.h"
 #include "PoseLib/robust/bundle.h"
+#include "PoseLib/robust/utils.h"
 #include "PoseLib/solvers/gen_relpose_5p1pt.h"
 #include "PoseLib/solvers/p3p.h"
 #include "PoseLib/solvers/relpose_5pt.h"
@@ -99,6 +100,44 @@ double CameraRelativePoseEstimator::score_model(const CameraPose &pose, size_t *
 }
 
 void CameraRelativePoseEstimator::refine_model(CameraPose *pose) const {
+    BundleOptions bundle_opt;
+    bundle_opt.loss_type = BundleOptions::LossType::TRUNCATED;
+    bundle_opt.loss_scale = opt.max_error;
+    bundle_opt.max_iterations = 25;
+
+    refine_relpose(d1, d2, M1, M2, pose, bundle_opt);
+}
+
+BearingRelativePoseEstimator::BearingRelativePoseEstimator(const RelativePoseOptions &opt,
+                                                           const std::vector<Point3D> &bearings1,
+                                                           const std::vector<Point3D> &bearings2)
+    : num_data(bearings1.size()), opt(opt), d1(bearings1), d2(bearings2),
+      sampler(num_data, sample_sz, opt.ransac) {
+    x1s.resize(sample_sz);
+    x2s.resize(sample_sz);
+    sample.resize(sample_sz);
+    M1.resize(num_data);
+    M2.resize(num_data);
+    for (size_t i = 0; i < num_data; ++i) {
+        compute_bearing_tangent_basis(d1[i], M1[i]);
+        compute_bearing_tangent_basis(d2[i], M2[i]);
+    }
+}
+
+void BearingRelativePoseEstimator::generate_models(std::vector<CameraPose> *models) {
+    sampler.generate_sample(&sample);
+    for (size_t k = 0; k < sample_sz; ++k) {
+        x1s[k] = d1[sample[k]];
+        x2s[k] = d2[sample[k]];
+    }
+    relpose_5pt(x1s, x2s, models);
+}
+
+double BearingRelativePoseEstimator::score_model(const CameraPose &pose, size_t *inlier_count) const {
+    return compute_tangent_sampson_msac_score(pose, d1, d2, M1, M2, opt.max_error * opt.max_error, inlier_count);
+}
+
+void BearingRelativePoseEstimator::refine_model(CameraPose *pose) const {
     BundleOptions bundle_opt;
     bundle_opt.loss_type = BundleOptions::LossType::TRUNCATED;
     bundle_opt.loss_scale = opt.max_error;

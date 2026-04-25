@@ -31,6 +31,8 @@
 #include "PoseLib/robust/utils.h"
 #include "robust/recalibrator.h"
 
+#include <cmath>
+
 namespace poselib {
 
 RansacStats estimate_absolute_pose(const std::vector<Point2D> &points2D, const std::vector<Point3D> &points3D,
@@ -310,6 +312,44 @@ RansacStats estimate_relative_pose(const std::vector<Point2D> &x1, const std::ve
             refine_relpose(x1_inliers, x2_inliers, pose, opt_scaled.bundle);
         }
     }
+    return stats;
+}
+
+RansacStats estimate_calibrated_relative_pose(const std::vector<Point3D> &bearings1,
+                                              const std::vector<Point3D> &bearings2, const RelativePoseOptions &opt,
+                                              CameraPose *pose, std::vector<char> *inliers) {
+    const size_t num_pts = bearings1.size();
+
+    RelativePoseOptions opt_scaled = opt;
+    double max_error_rad = opt.max_error * M_PI / 180.0;
+    opt_scaled.max_error = max_error_rad;
+    opt_scaled.bundle.loss_scale = max_error_rad;
+
+    RansacStats stats = ransac_relpose(bearings1, bearings2, opt_scaled, pose, inliers);
+
+    if (stats.num_inliers > 5) {
+        std::vector<Point3D> d1_inliers, d2_inliers;
+        std::vector<Eigen::Matrix<double, 3, 2>> M1_inliers, M2_inliers;
+        d1_inliers.reserve(stats.num_inliers);
+        d2_inliers.reserve(stats.num_inliers);
+        M1_inliers.reserve(stats.num_inliers);
+        M2_inliers.reserve(stats.num_inliers);
+
+        for (size_t k = 0; k < num_pts; ++k) {
+            if (!(*inliers)[k])
+                continue;
+            d1_inliers.push_back(bearings1[k]);
+            d2_inliers.push_back(bearings2[k]);
+            Eigen::Matrix<double, 3, 2> M;
+            compute_bearing_tangent_basis(bearings1[k], M);
+            M1_inliers.push_back(M);
+            compute_bearing_tangent_basis(bearings2[k], M);
+            M2_inliers.push_back(M);
+        }
+
+        refine_relpose(d1_inliers, d2_inliers, M1_inliers, M2_inliers, pose, opt_scaled.bundle);
+    }
+
     return stats;
 }
 

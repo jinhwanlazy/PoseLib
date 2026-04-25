@@ -104,6 +104,35 @@ class CameraRelativePoseEstimator {
     std::vector<size_t> sample;
 };
 
+// Estimator for relative pose from pre-computed bearing vectors
+// Uses Tangent Sampson error with tangent-plane Jacobians for scoring and refinement
+class BearingRelativePoseEstimator {
+  public:
+    BearingRelativePoseEstimator(const RelativePoseOptions &opt, const std::vector<Point3D> &bearings1,
+                                 const std::vector<Point3D> &bearings2);
+
+    void generate_models(std::vector<CameraPose> *models);
+    double score_model(const CameraPose &pose, size_t *inlier_count) const;
+    void refine_model(CameraPose *pose) const;
+
+    const size_t sample_sz = 5;
+    const size_t num_data;
+
+  private:
+    const RelativePoseOptions &opt;
+    const std::vector<Point3D> &d1;
+    const std::vector<Point3D> &d2;
+
+  public:
+    std::vector<Eigen::Matrix<double, 3, 2>> M1, M2;
+
+  private:
+    RandomSampler sampler;
+    // pre-allocated vectors for sampling
+    std::vector<Eigen::Vector3d> x1s, x2s;
+    std::vector<size_t> sample;
+};
+
 class RelativePoseMonoDepthEstimator {
   public:
     RelativePoseMonoDepthEstimator(const MonoDepthRelativePoseOptions &options, const std::vector<Point2D> &points2D_1,
